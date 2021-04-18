@@ -1,0 +1,304 @@
+ ====================================
+ = JV 2080 Ctrlr panel design notes =
+ ====================================
+
+2020-08-23 01:28:34
+
+---
+
+Design updates:
+TODO: add detune & pan spread to convert current 2-tone patch to 4-tone stereo spread (copy 1/2 to 3/4, L/R pan the tones, detune 3/4)
+-> add a detune knob, pan spread knob, trigger button 
+- (zero pan/detune for basic layering, pan & detune to spready current patch)
+- could detune one of tone3/4 less strongly to maintain a centre, might also help with mono compatibility
+- don't detune 1/2, only 3/4; otherwise we would get pitch drift when we apply it repeatedly
+
+More controls:
+TODO: osc1 range
+TODO: vel -> (filter) attack
+TODO: a "reset controls" button (don't send MIDI)
+TODO: filter attack curve via unused breakpoints... optimally as a single-control optional thing
+TODO: waves from other groups
+- Int a: string, pad, synth, brass, string, vox (200+)
+- EXP waves? (don't think I have any good synth ones... need to check what cards I have. Maybe strings or vox. But might also not need them.)
+TODO: any efx? phaser, distortion, ...?
+
+---
+
+Potential implementation improvements:
+TODO: set k0 to device ID, update all sysex codes
+- k0 = 10 (device ID 17)
+
+Luxury options:
+TODO: connect & show status
+TODO: "read all from device"... cf https://ctrlr.org/forums/topic/what-do-you-need-to-know-in-order-to-make-panels/
+TODO: a baseline "reset" patch? (to send as sysex dump)
+TODO: make it switchable to edit tone1/2 or tone3/4 (atm "analog feel" is the only common/global parameter I think.)
+
+ ==================
+ = MIDI reference =
+ ==================
+
+See MIDI parameter address map in manual from p188.
+
+- device header
+            - command
+               - address
+                     - common (0) or tone (10/12/14/16)
+                           - data
+Common:
+F0 41 10 6A 12 03 00 00 00-0B LS z5 F7   patch name 1-12 (32-125)
+F0 41 10 6A 12 03 00 00 30 LS z5 F7   analog feel (0-127)
+F0 41 10 6A 12 03 00 00 35 LS z5 F7   portamento off/on (0,1)
+F0 41 10 6A 12 03 00 00 36 LS z5 F7   portamento mode: normal/legato (0,1)
+F0 41 10 6A 12 03 00 00 37 LS z5 F7   portamento type: rate/time (0,1)
+F0 41 10 6A 12 03 00 00 38 LS z5 F7   portamento start: pitch/note (0,1)
+F0 41 10 6A 12 03 00 00 39 LS z5 F7   portamento time (0-127)
+F0 41 10 6A 12 03 00 00 44 LS z5 F7   structure 1&2 type (0-9)
+F0 41 10 6A 12 03 00 00 45 LS z5 F7   booster 1&2 (0-3)
+F0 41 10 6A 12 03 00 00 46 LS z5 F7   structure 3&4 type (0-9)
+F0 41 10 6A 12 03 00 00 47 LS z5 F7   booster 3&4 (0-3)
+
+Tone 1:
+F0 41 10 6A 12 03 00 10 00 LS z5 F7   tone off/on (0,1)
+F0 41 10 6A 12 03 00 10 01 00 z5 F7   wave group type (0 = int, 2 = xp)
+F0 41 10 6A 12 03 00 10 02 02 z5 F7   wave group ID (1 = Int A, 2 = Int B)
+F0 41 10 6A 12 03 00 10 03 ms ls z6 F7  wave ID (two consecutive 7-bit bytes)
+F0 41 10 6A 12 03 00 10 05 LS z6 F7   wave gain (0-3)
+F0 41 10 6A 12 03 00 10 06 LS z6 F7   fxm off/on
+F0 41 10 6A 12 03 00 10 07 LS z6 F7   fxm color (0-3)
+F0 41 10 6A 12 03 00 10 08 LS z6 F7   fxm depth (0-15)
+F0 41 10 6A 12 03 00 10 15 LS z5 F7   Controller 1 (MW) dest 1 (0-18: OFF, PCH, CUT, RES, LEV, PAN, MIX, CHO, REV, PL1, PL2, FL1, FL2, AL1, AL2, pL1, pL2, L1R, L2R)
+F0 41 10 6A 12 03 00 10 16 LS z5 F7   Controller 1 (MW) depth 1 (0-126 for ±63)
+                        ... etc for other controllers & links
+F0 41 10 6A 12 03 00 10 3D LS z5 F7   coarse tune (0-96 for ±48)
+F0 41 10 6A 12 03 00 10 3E LS z5 F7   fine tune (0-100 for ±50)
+F0 41 10 6A 12 03 00 10 3F LS z5 F7   random pitch depth (0-63)
+F0 41 10 6A 12 03 00 10 4E LS z5 F7   lfo 1 depth (0-126 for ±63)
+F0 41 10 6A 12 03 00 10 4F LS z5 F7   lfo 2 depth (0-126 for ±63)
+
+LFOs: (per tone!!)
+F0 41 10 6A 12 03 00 10 2D LS z5 F7   lfo 1 type (0-7: tri, sin, saw, sqr, trp, s&h, rnd, chs)
+F0 41 10 6A 12 03 00 10 2E LS z5 F7   lfo 1 key trigger (0,1)
+F0 41 10 6A 12 03 00 10 2F LS z5 F7   lfo 1 rate
+F0 41 10 6A 12 03 00 10 30 LS z5 F7   lfo 1 phase (0-4)
+F0 41 10 6A 12 03 00 10 31 LS z5 F7   lfo 1 delay
+F0 41 10 6A 12 03 00 10 32 LS z5 F7   lfo 1 fade mode (0-3; 0=fade in)
+F0 41 10 6A 12 03 00 10 33 LS z5 F7   lfo 1 fade time
+F0 41 10 6A 12 03 00 10 35 LS z5 F7   lfo 2 type
+                                      lfo 2 ... etc
+Filter 1:
+F0 41 10 6A 12 03 00 10 50 03 z5 F7   Filter type (Off, LPF, BPF, HPF, PKG)
+F0 41 10 6A 12 03 00 10 51 LS z5 F7   cutoff
+F0 41 10 6A 12 03 00 10 52 LS z5 F7   key follow (0-15; 5=off)
+F0 41 10 6A 12 03 00 10 53 LS z5 F7   res
+F0 41 10 6A 12 03 00 10 55 LS z5 F7   env depth (0-126 for ±63)
+F0 41 10 6A 12 03 00 10 56 LS z5 F7   velocity curve (0-6)
+F0 41 10 6A 12 03 00 10 57 LS z5 F7   velocity depth (0-125 for -100..+150)
+F0 41 10 6A 12 03 00 10 5B/C/D/E LS z5 F7   env time 1-4
+F0 41 10 6A 12 03 00 10 5F/60/1/2 LS z5 F7   env level 1-4
+F0 41 10 6A 12 03 00 10 63 LS z5 F7   lfo1 depth (0-126)
+F0 41 10 6A 12 03 00 10 64 LS z5 F7   lfo2 depth (0-126)
+
+Amp 1:
+F0 41 10 6A 12 03 00 10 65 LS z5 F7   tone level
+F0 41 10 6A 12 03 00 10 69 LS z5 F7   velocity curve (0-6)
+F0 41 10 6A 12 03 00 10 6A LS z5 F7   velocity depth (0-125 for -100..+150)
+F0 41 10 6A 12 03 00 10 6E/F/70/1 LS z5 F7   env time 1-4
+F0 41 10 6A 12 03 00 10 72/3/4 LS z5 F7   env level 1-3
+F0 41 10 6A 12 03 00 10 77 LS z5 F7   tone pan (0-127)
+F0 41 10 6A 12 03 00 10 79 LS z5 F7   random pan depth (0-63)
+F0 41 10 6A 12 03 00 10 7B LS z5 F7   LFO 1 pan depth (0-126 for ±63)
+F0 41 10 6A 12 03 00 10 7C LS z5 F7   LFO 2 pan depth (0-126 for ±63)
+F0 41 10 6A 12 03 00 10 7F LS z5 F7   chorus send
+
+
+ ========================
+ = Implementation notes =
+ ========================
+
+Basics:
+- patch routing type (3)
+- filter 1 type (hpf, no res)
+- tone 1, 2 on; 3, 4 off
+
+---
+
+To model ADSR with these five-stage envelopes we basically skip the first stage:
+t1=0
+l1=0
+t2=A
+l2=100%
+t3=D
+l3=S
+t4=R
+(l4=0 for filter envelope)
+
+---
+
+UI colour scheme
+
+panel bg: FF282828
+main highlight/button/data color: FFFFBB66 (orange-brown)
+slider track/combo bg color: 44FFBB66 (orange-brown but low alpha)
+label/outline color: FFDDDDDD (light grey)
+
+---
+
+To send sysex messages in Lua:
+
+E.g. "F0 41 10 6A 12 03 00 00 00-0B LS z5 F7" -- send first char of patch name
+
+-- checksum = 0x80 - ((address bytes + value) & 0x7F) & 0x7F
+-- i.e., the complement of the last 7 bits of the byte sum
+checksum = bit.band(0x80 - bit.band((3+0+0+idx + value), 0x7F), 0x7F)
+panel:sendMidiMessageNow(CtrlrMidiMessage({
+    0xF0, 0x41, 0x10, 0x6A, 0x12, 
+    0x03, 0x00, 0x00, 0x00, value, checksum, 
+    0xF7})) 
+
+For example:
+
+function setPatchName()
+    console("setPatchName")
+    local pn = utils.askForTextInputWindow ("Set patch name", "The patch name will be truncated to 12 ASCII characters.", "", "Patch name:", false, "OK", "Cancel")
+    console(pn)
+    if (pn ~= nil) and (pn ~= "") then
+        local str = ""
+        for idx = 0, 11, 1 do
+            --if string.len(pn) > i then
+            local c = string.byte(pn, idx+1)
+            if (c == nil) or (c<32) or (c>125) then
+                   c = 32 -- space
+            end
+            -- checksum = 0x80 - ((address bytes + value) & 0x7F) & 0x7F
+            -- i.e., the complement of the last 7 bits of the byte sum
+            local checksum = bit.band(0x80 - bit.band((3+0+0+idx + c), 0x7F), 0x7F)
+            panel:sendMidiMessageNow(CtrlrMidiMessage({
+                0xF0, 0x41, 0x10, 0x6A, 0x12, 
+                0x03, 0x00, 0x00, idx, c, checksum, 
+                0xF7})) 
+            str = str..string.char(c)
+        end
+        console("New patch name: "..str)
+    end
+end
+
+---
+
+To sync / send all control values to the device:
+
+function sendPatch()
+    console("sendPatch")
+    -- To avoid infinite loops we only set values on
+    -- VST-exported properties. Unfortunately there's 
+    -- no simple way to enumerate them, so we'll request 
+    -- the first 100 or so entries and check if they exist. 
+    -- We also set all non-exported modulators to a high 
+    -- vstIndex >= 1000 -- although that's not essential.
+
+    -- This would enumerate modulators in order of creation, 
+    -- not VST order:
+    -- for n = 0, panel:getNumModulators()-1, 1 do
+    --     m = panel:getModulatorByIndex(n)
+    --     if m ~= nil then
+    --         ...
+
+    -- Whereas this follows VST export order:
+    for n = 1, 128, 1 do -- the first 100 or so
+        local m = panel:getModulatorWithProperty("vstIndex", n) 
+        -- Missing vstIndex entries don't yield a null value –
+        -- they yield an "invalid" modulator instance. So
+        -- we now still need to check if this is a real one.
+        isVstProp = m:getPropertyInt("modulatorVstExported")
+        if isVstProp==1 then
+            --console(m:getName())
+            local v = m:getModulatorValue()
+            m:setModulatorValue(v, false, true, false) -- value, vst, midi, ui
+        end
+    end
+end
+
+
+ =====================
+ = MIDI format notes =
+ =====================
+
+21:26:50.003    To Studio 68c    SysEx        Roland 12 bytes    
+F0 41 10 6A 12 03 00 10 53 24 76 F7
+- F0: sysex
+   - 41: Roland device ID
+      - 10: MIDI device ID (10h-1Fh)
+         - 6A: model ID (JV 2080)
+            - 12: command ID (DT1 = "data set 1", the main controller data)
+               - 03: address MSB (03 00 00 00: patch mode temp patch)
+                  - 00: address (second byte)
+                     - 10: address (patch tone; 0=common, 10=1, 12=2, 14=3, 16=4)
+                        - xx: address LSB (parameter selection)
+                        - 51: cutoff
+                        - 53: reso
+                           - 24: data/value [here: 7bit]
+                              - 76: checksum
+                                 - F7: eof
+
+---
+
+Checksum: 127 - ((address bytes + value) & 0x7F) // i.e., the last 7 bits
+
+E.g. for Cutoff of tone 1 of temp patch:
+address = 03 00 10 51
+value = 24 // for example
+sum = 03 + 00 + 10 + 51 + 24 = 88h
+checksum = ff - 88 = 77
+
+The full message:
+F0 41 10 6A 12 03 00 10 51 24 77 F7
+
+---
+
+Nice: Ctrl has support for Roland JV checksums!
+https://ctrlr.org/getting-started/
+
+So instead:
+- LS (7-bit LSB of current controller value)
+- z5 (Roland JP8080 checksum of the previous 5 bytes)
+
+F0 41 10 6A 12 03 00 10 51 LS z5 F7
+
+And optionally global variables:
+- k0 // var 0
+
+---
+
+Selecting waves
+
+E.g. to select wave 27 (synth saw 2) for tone 1:
+
+F0 41 10 6A 12 03 00 10 03 01 0A 5F F7
+                        - 03: wave number
+                           - 01 0a: number in nibbles (ms ls)
+                                 - checksum (over 6 bytes)
+
+This is relative to the wave group, so we would set that too – best as a multimessage.
+
+To select waveguide bank Internal B:
+F0 41 10 6A 12 03 00 10 01 00 6C F7
+                        - 01: wave group type (0 = internal, 2 = xp card)
+F0 41 10 6A 12 03 00 10 02 02 69 F7
+                        - 02: wave goup ID (1 = Int A, 2 = Int B)
+
+---
+
+Mod wheel controller assignments: 
+- 1: cut=02 (t2)
+- 2: PL1=09 (t1,2)
+- 3: FL2=0c (t2)
+- 4: L1R=11 (t1,2)
+
+(Need to test these if they're practical.)
+
+---
+
+Dor layering, a button to copy tone1/2 to tone3/4
+- via memory range get/setters (command 11h to request, 12h to set – turns out both support ranges)
+- but need to do it in 128-byte blocks max. I.e., can do it in two requests per tone (or one, if we're happy to ignore the reverb send setting)
